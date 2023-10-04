@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Weather Data</title>
+    <style>
+        /* Dark theme styles */
+        body {
+            background-color: rgb(48, 48, 48);
+            color: #FFFFFF;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            /* Remove default margin */
+        }
+
+        h1 {
+            color: #FFFFFF;
+            /* Blue color for headings */
+        }
+
+        /* Style for plot titles (h2) */
+        h2 {
+            color: #FFFFFF;
+        }
+
+        /* Style for input, button, and container div */
+        input[type="datetime-local"],
+        button {
+            margin: 10px;
+        }
+
+        /* Style for plot containers */
+        .plot-container {
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Weather Data</h1>
+    <div>
+        <h2>Select Date and Time Range</h2>
+        <label for="start-datetime">Start Date and Time:</label>
+        <input type="datetime-local" id="start-datetime" required>
+        <label for="end-datetime">End Date and Time:</label>
+        <input type="datetime-local" id="end-datetime" required>
+        <button onclick="fetchCustomData()">Show Data</button>
+    </div>
+    <div class="plot-container">
+        <h2>Temperature</h2>
+        <div id="temperature-plot"></div>
+    </div>
+    <div class="plot-container">
+        <h2>Humidity</h2>
+        <div id="humidity-plot"></div>
+    </div>
+    <div class="plot-container">
+        <h2>Pressure</h2>
+        <div id="pressure-plot"></div>
+    </div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // Create initial empty data for the plots
+        var initialData = {
+            x: [],
+            y: [],
+            mode: 'lines',
+            name: ''
+        };
+
+        // Create initial layout options
+        var layout = {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            xaxis: {
+                gridcolor: 'transparent' // Remove vertical gridlines
+            },
+            yaxis: {
+                gridcolor: 'transparent' // Remove horizontal gridlines
+            },
+            font: {
+                color: '#FFFFFF' // Set text color to white
+            }
+        };
+
+        // Create initial plots with empty data and layout
+        var temperaturePlot = Plotly.newPlot('temperature-plot', [initialData], layout);
+        var humidityPlot = Plotly.newPlot('humidity-plot', [initialData], layout);
+        var pressurePlot = Plotly.newPlot('pressure-plot', [initialData], layout);
+
+        // Function to fetch and update plots based on user-defined date and time range
+        function fetchCustomData() {
+            var startDatetime = document.getElementById('start-datetime').value;
+            var endDatetime = document.getElementById('end-datetime').value;
+
+            // Send the selected date and time range to the server to fetch data
+            fetch('/fetch-custom-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ startDatetime, endDatetime })
+            })
+                .then(response => response.json())
+                .then(data => {
+
+                    if (!data || !Array.isArray(data.time) || !Array.isArray(data.temperature)) {
+                        throw new Error('Data format is not as expected');
+                    }
+
+                    // Extract data from the JSON response
+                    var timeData = data.time;
+                    var temperatureData = data.temperature;
+                    var humidityData = data.humidity;
+                    var pressureData = data.pressure;
+
+                    // Update the plots with the fetched data
+                    updatePlot('temperature-plot', timeData, temperatureData, 'Temperature');
+                    updatePlot('humidity-plot', timeData, humidityData, 'Humidity');
+                    updatePlot('pressure-plot', timeData, pressureData, 'Pressure');
+                })
+                .catch(error => {
+                    console.error('Error fetching custom data:', error);
+                });
+        }
+
+        // Function to update a plot with new data
+        function updatePlot(plot, time, newData, name) {
+            console.log("Updating plot with data:", time, newData, name);
+
+            if (!Array.isArray(time) || !Array.isArray(newData)) {
+                console.error("Invalid data format for updating the plot.");
+                return;
+            }
+
+            var update = {
+                'x': [time],
+                'y': [newData],
+                'mode': 'lines', // Specify the mode as 'lines'
+                'name': name
+            };
+
+            Plotly.update(plot, update);
+        }
+    </script>
+</body>
+
+</html>

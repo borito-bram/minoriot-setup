@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Weather Data</title>
+    <style>
+        /* Dark theme styles */
+        body {
+            background-color: rgb(48,48,48);
+            color: #FFFFFF;
+            font-family: Arial, sans-serif;
+            margin: 0; /* Remove default margin */
+        }
+
+        h1 {
+            color: #FFFFFF; /* Blue color for headings */
+        }
+
+        /* Style for plot titles (h2) */
+        h2 {
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Weather Data</h1>
+    <h2>Temperature</h2>
+    <div id="temperature-plot"></div>
+    <h2>Humidity</h2>
+    <div id="humidity-plot"></div>
+    <h2>Pressure</h2>
+    <div id="pressure-plot"></div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // Function to fetch data and update plots
+        function refreshData() {
+            fetch('/refresh-data')
+                .then(response => response.json())
+                .then(data => {
+                    var temperaturePlot = document.getElementById('temperature-plot');
+                    var humidityPlot = document.getElementById('humidity-plot');
+                    var pressurePlot = document.getElementById('pressure-plot');
+
+                    // Update plot data and styles
+                    Plotly.react(temperaturePlot, [data[0]], {
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        xaxis: {
+                            gridcolor: 'transparent' // Remove vertical gridlines
+                        },
+                        yaxis: {
+                            gridcolor: 'transparent' // Remove horizontal gridlines
+                        },
+                        font: {
+                            color: '#FFFFFF' // Set text color to white
+                        }
+                    });
+
+                    Plotly.react(humidityPlot, [data[1]], {
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        xaxis: {
+                            gridcolor: 'transparent' // Remove vertical gridlines
+                        },
+                        yaxis: {
+                            gridcolor: 'transparent' // Remove horizontal gridlines
+                        },
+                        font: {
+                            color: '#FFFFFF' // Set text color to white
+                        }
+                    });
+
+                    Plotly.react(pressurePlot, [data[2]], {
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        xaxis: {
+                            gridcolor: 'transparent' // Remove vertical gridlines
+                        },
+                        yaxis: {
+                            gridcolor: 'transparent' // Remove horizontal gridlines
+                        },
+                        font: {
+                            color: '#FFFFFF' // Set text color to white
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error refreshing data:', error);
+                });
+        }
+
+        // Refresh data initially and then every 5 seconds
+        refreshData(); // Refresh immediately
+
+        setInterval(refreshData, 5000); // Refresh every 5 seconds
+    </script>
+</body>
+
+</html>
