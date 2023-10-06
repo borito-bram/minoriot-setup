@@ -45,6 +45,7 @@
         <label for="end-datetime">End Date and Time:</label>
         <input type="datetime-local" id="end-datetime" required>
         <button onclick="fetchCustomData()">Show Data</button>
+        <button onclick="toggleLiveMode()">Toggle Live Mode</button>
     </div>
     <div class="plot-container">
         <h2>Temperature</h2>
@@ -57,9 +58,6 @@
     <div class="plot-container">
         <h2>Pressure</h2>
         <div id="pressure-plot"></div>
-    </div>
-    <div>
-        <button onclick="toggleLiveMode()">Toggle Live Mode</button>
     </div>
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>

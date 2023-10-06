@@ -6,35 +6,14 @@ import json
 
 app = Flask(__name__)
 
-# Function to fetch data for the last 14 days from the database
-def fetch_data():
-    # Calculate the date 14 days ago from today
-    fourteen_days_ago = datetime.now() - timedelta(days=14)
-    fourteen_days_ago_str = fourteen_days_ago.strftime('%Y-%m-%d %H:%M:%S')
-
-    conn = sqlite3.connect('sensor_data.db')
-    c = conn.cursor()
-    
-    # Fetch data for the last 14 days
-    c.execute('SELECT time, temperature, humidity, pressure FROM sensor_data WHERE time >= ?', (fourteen_days_ago_str,))
-    data = c.fetchall()
-    
-    conn.close()
-
-    time_data = [row[0] for row in data]
-    temperature_data = [row[1] for row in data]
-    humidity_data = [row[2] for row in data]
-    pressure_data = [row[3] for row in data]
-
-    return time_data, temperature_data, humidity_data, pressure_data
-
 # Function to fetch live data for the last 24 hours from the database
+@app.route('/fetch-live-data', methods=['POST'])
 def fetch_live_data():
     # Calculate the date and time 24 hours ago from the current time
     end_datetime = datetime.now()
-    start_datetime = end_datetime - timedelta(hours=24)
+    start_datetime = end_datetime - timedelta(hours=2)
 
-    conn = sqlite3.connect('sensor_data.db')
+    conn = sqlite3.connect('/home/admin/minoriot-setup/IoT_Fund/sensor_data.db')
     c = conn.cursor()
 
     # Fetch data from the database based on the last 24 hours
@@ -48,7 +27,14 @@ def fetch_live_data():
     humidity_data = [row[2] for row in data]
     pressure_data = [row[3] for row in data]
 
-    return time_data, temperature_data, humidity_data, pressure_data
+    data = {
+        'time': time_data,
+        'temperature': temperature_data,
+        'humidity': humidity_data,
+        'pressure': pressure_data
+    }
+
+    return jsonify(data)
 
 @app.route('/')
 def index():

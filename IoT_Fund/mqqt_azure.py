@@ -35,6 +35,23 @@ cursor = conn.cursor()
 # Azure IoT Hub client
 iot_hub_client = IoTHubDeviceClient.create_from_connection_string(iot_hub_conn_str)
 
+# Function to modify the date and time format in each string
+def modify_string(input_str):
+    # Parse the input string as a datetime object with microseconds
+    datetime_obj = datetime.strptime(input_str, "%Y-%m-%d %H:%M:%S.%f")
+
+    # Extract components
+    day_name = datetime_obj.strftime("%A")
+    month_name = datetime_obj.strftime("%B")
+    day = datetime_obj.strftime("%d")
+    year = datetime_obj.strftime("%Y")
+    time = datetime_obj.strftime("%H.%M.%S")
+
+    # Construct a new string with the desired format
+    new_str = f"{day_name} {month_name} {day}, {year}, {time}"
+
+    return new_str
+
 # Callback when a message is received from MQTT
 def on_message(client, userdata, message):
     try:
@@ -86,12 +103,15 @@ def send_unsent_data_to_iot_hub():
 
         for row in rows:
             data_id, pressure, temperature, humidity, device, time = row
+
+            modified_time = modify_string(time)
+
             payload = {
                 "pressure": pressure,
                 "temperature": temperature,
                 "humidity": humidity,
                 "device": device,
-                "time": time
+                "time": modified_time
             }
             msg = json.dumps(payload)
             iot_hub_client.send_message(msg)
