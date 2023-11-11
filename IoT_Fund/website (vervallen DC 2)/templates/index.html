@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Bridge Data</title>
+    <style>
+        /* Dark theme styles */
+        body {
+            background-color: rgb(48, 48, 48);
+            color: #FFFFFF;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            /* Remove default margin */
+        }
+
+        h1 {
+            color: #FFFFFF;
+            /* Blue color for headings */
+        }
+
+        /* Style for plot titles (h2) */
+        h2 {
+            color: #FFFFFF;
+        }
+
+        /* Style for input, button, and container div */
+        input[type="datetime-local"],
+        button {
+            margin: 10px;
+        }
+
+        /* Style for plot containers */
+        .plot-container {
+            margin: 20px;
+        }
+
+        /* Style for speedometer */
+        .speedometer {
+            color: #FFFFFF;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Bridge Data</h1>
+    <div>
+        <h2>Select Date and Time Range</h2>
+        <label for="start-datetime">Start Date and Time:</label>
+        <input type="datetime-local" id="start-datetime" required>
+        <label for "end-datetime">End Date and Time:</label>
+        <input type="datetime-local" id="end-datetime" required>
+        <button onclick="fetchCustomData()">Show Data</button>
+        <button onclick="toggleLiveMode()">Toggle Live Mode</button>
+        <h2>Select Device Type</h2>
+        <label for="device-type-select">Select a Device Type:</label>
+        <select id="device-type-select"></select>
+    </div>
+    <div class="plot-container">
+        <h2>Bridge temperature</h2>
+        <div id="temperature-plot"></div>
+        <div class="speedometer" id="temperature-gauge"></div>
+    </div>
+    <div class="plot-container">
+        <h2>Bridge Open(1)/Close(0)</h2>
+        <div id="bridge-plot"></div>
+        <div class="speedometer" id="bridge-gauge"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.4.0/justgage.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // Create initial empty data for the plots
+        var initialData = {
+            x: [],
+            y: [],
+            mode: 'lines',
+            name: ''
+        };
+
+        // Create initial layout options
+        var layout = {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            xaxis: {
+                gridcolor: 'transparent' // Remove vertical gridlines
+            },
+            yaxis: {
+                gridcolor: 'transparent' // Remove horizontal gridlines
+            },
+            font: {
+                color: '#FFFFFF' // Set text color to white
+            }
+        };
+
+        // Create initial plots with empty data and layout
+        var temperaturePlot = Plotly.newPlot('temperature-plot', [initialData], layout);
+        var bridgePlot = Plotly.newPlot('bridge-plot', [initialData], layout);
+
+        // Create initial gauges
+        var temperatureGauge = createOrUpdateGauge('temperature-gauge', 0, 'Temperature', '', 0, 100);
+        var bridgeGauge = createOrUpdateGauge('bridge-gauge', 0, 'Bridge', '', 0, 1);
+
+        // Function to create or update a gauge
+        function createOrUpdateGauge(gaugeId, value, title, label, min, max) {
+            var gauge = new JustGage({
+                id: gaugeId,
+                value: value,
+                min: min,
+                max: max,
+                title: title,
+                label: label,
+                valueFontColor: "#FFFFFF",
+                levelColors: ["#FF0000", "#FFFF00", "#00FF00"], // Define gauge colors
+            });
+
+            return gauge;
+        }
+
+        // Function to fetch and update plots based on user-defined date and time range
+        function fetchCustomData() {
+            var startDatetime = document.getElementById('start-datetime').value;
+            var endDatetime = document.getElementById('end-datetime').value;
+
+            // Send the selected date and time range to the server to fetch data
+            fetch('/fetch-custom-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ startDatetime, endDatetime })
+            })
+                .then(response => response.json())
+                .then(data => {
+
+                    if (!data || !Array.isArray(data.time) || !Array.isArray(data.temperature)) {
+                        throw new Error('Data format is not as expected');
+                    }
+
+                    // Extract data from the JSON response
+                    var timeData = data.time;
+                    var temperatureData = data.temperature;
+                    var bridgeData = data.bridge;
+
+                    // Update the plots with the fetched data
+                    updatePlot('temperature-plot', timeData, temperatureData, 'Temperature');
+                    updatePlot('bridge-plot', timeData, bridgeData, 'Bridge');
+                })
+                .catch(error => {
+                    console.error('Error fetching custom data:', error);
+                });
+        }
+
+        // Function to update a plot with new data and update the gauge
+        function updatePlot(plot, time, newData, name) {
+            if (!Array.isArray(time) || !Array.isArray(newData)) {
+                console.error('Invalid data format for updating the plot.');
+                return;
+            }
+
+            var update = {
+                x: [time],
+                y: [newData],
+                mode: 'lines', // Specify the mode as 'lines'
+                name: name
+            };
+
+            Plotly.update(plot, update);
+
+            // Update the gauge with the latest value
+            if (plot === 'temperature-plot') {
+                temperatureGauge.refresh(newData[newData.length - 1]);
+            } else if (plot === 'bridge-plot') {
+                bridgeGauge.refresh(newData[newData.length - 1]);
+            }
+        }
+
+        // Variable to track live mode
+        var liveModeActive = false;
+        var liveUpdateInterval;
+
+        // Function to toggle live mode
+        function toggleLiveMode() {
+            liveModeActive = !liveModeActive;
+            if (liveModeActive) {
+                // Start auto-updating every 5 seconds
+                liveUpdateInterval = setInterval(fetchLiveData, 5000);
+            } else {
+                // Stop auto-updating
+                clearInterval(liveUpdateInterval);
+            }
+        }
+
+        // Function to fetch live data
+        function fetchLiveData() {
+            if (!liveModeActive) {
+                return; // Do nothing if live mode is not active
+            }
+            // Fetch live data for the last 24 hours
+            fetch('/fetch-live-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+
+                    if (!data || !Array.isArray(data.time) || !Array.isArray(data.temperature)) {
+                        throw new Error('Data format is not as expected');
+                    }
+
+                    // Extract data from the JSON response
+                    var timeData = data.time;
+                    var temperatureData = data.temperature;
+                    var bridgeData = data.bridge;
+
+                    // Update the plots with the fetched data
+                    updatePlot('temperature-plot', timeData, temperatureData, 'Temperature');
+                    updatePlot('bridge-plot', timeData, bridgeData, 'Bridge');
+                })
+                .catch(error => {
+                    console.error('Error fetching live data:', error);
+                });
+        }
+
+        // Fetch and populate the combobox with device types
+        $(document).ready(function() {
+            $.ajax({
+                url: '/get-device-types',
+                type: 'GET',
+                success: function(data) {
+                    var select = $('#device-type-select');
+                    select.append('<option value="">Select a Device Type</option>');
+                    data.forEach(function(deviceType) {
+                        select.append('<option value="' + deviceType + '">' + deviceType + '</option>');
+                    });
+                }
+            });
+        });
+
+        // Handle selection of a device type from the combobox
+        $('#device-type-select').change(function() {
+            var selectedDeviceType = $(this).val();
+            if (selectedDeviceType) {
+                // Fetch and display data for the selected device type
+                $.ajax({
+                    url: '/fetch-data-for-device-type',
+                    type: 'POST',
+                    data: JSON.stringify({ deviceType: selectedDeviceType }),
+                    contentType: 'application/json',
+                    success: function(data) {
+                        // Display the data in the result div
+                        var resultDiv = $('.result');
+                        resultDiv.html('<h2>Data for Device Type: ' + selectedDeviceType + '</h2>');
+                        resultDiv.append('<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
